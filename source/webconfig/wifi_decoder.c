@@ -29,7 +29,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include "cJSON.h"
+#include <cjson/cJSON.h>
 #include "wifi_webconfig.h"
 #include "ctype.h"
 #include "wifi_ctrl.h"
@@ -1617,6 +1617,13 @@ webconfig_error_t decode_vap_common_object(const cJSON *vap, wifi_vap_info_t *va
         vap_info->u.bss_info.connected_building_enabled = (param->type & cJSON_True) ? true:false;
     }
 
+    // HostapMgtFrameCtrl
+    decode_param_bool(vap, "HostapMgtFrameCtrl", param);
+    vap_info->u.bss_info.hostap_mgt_frame_ctrl = (param->type & cJSON_True) ? true : false;
+
+    decode_param_bool(vap, "MboEnabled", param);
+    vap_info->u.bss_info.mbo_enabled = (param->type & cJSON_True) ? true : false;
+
     return webconfig_error_none;
 }
 
@@ -2744,6 +2751,30 @@ webconfig_error_t decode_config_object(const cJSON *wifi, wifi_global_config_t *
     return webconfig_error_none;
 }
 
+webconfig_error_t decode_device_info(const cJSON *device_cfg, wifi_platform_property_t *info)
+{
+    const cJSON  *param;
+
+    decode_param_string(device_cfg, "Manufacturer", param);
+    strcpy(info->manufacturer, param->valuestring);
+
+    decode_param_string(device_cfg, "Model", param);
+    strcpy(info->manufacturerModel, param->valuestring);
+
+    decode_param_string(device_cfg, "SerialNo", param);
+    strcpy(info->serialNo, param->valuestring);
+
+    decode_param_string(device_cfg, "Software_version", param);
+    strcpy(info->software_version, param->valuestring);
+
+    decode_param_string(device_cfg, "CMMAC", param);
+    str_to_mac_bytes(param->valuestring,info->cm_mac);
+
+    decode_param_string(device_cfg, "AL1905-MAC", param);
+    str_to_mac_bytes(param->valuestring,info->al_1905_mac);
+
+    return webconfig_error_none;
+}
 
 webconfig_error_t decode_associated_clients_object(webconfig_subdoc_data_t *data, cJSON *obj_vaps, assoclist_type_t assoclist_type)
 {

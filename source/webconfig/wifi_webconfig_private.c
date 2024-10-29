@@ -22,9 +22,7 @@
 #include <stdarg.h>
 #include <pthread.h>
 #include <unistd.h>
-#include "secure_wrapper.h"
 #include "collection.h"
-#include "msgpack.h"
 #include "wifi_webconfig.h"
 #include "wifi_util.h"
 #include "wifi_ctrl.h"
@@ -51,9 +49,14 @@ webconfig_error_t access_check_private_subdoc(webconfig_t *config, webconfig_sub
 
 webconfig_error_t translate_from_private_subdoc(webconfig_t *config, webconfig_subdoc_data_t *data)
 {
-    if ((data->descriptor & webconfig_data_descriptor_translate_to_ovsdb) == webconfig_data_descriptor_translate_to_ovsdb) {
+    if (((data->descriptor & webconfig_data_descriptor_translate_to_ovsdb) == webconfig_data_descriptor_translate_to_ovsdb) 
+        ||  ((data->descriptor & webconfig_data_descriptor_translate_to_easymesh) == webconfig_data_descriptor_translate_to_easymesh)) {
         if (config->proto_desc.translate_to(webconfig_subdoc_type_private, data) != webconfig_error_none) {
-            return webconfig_error_translate_to_ovsdb;
+            if ((data->descriptor & webconfig_data_descriptor_translate_to_ovsdb) == webconfig_data_descriptor_translate_to_ovsdb) {
+                return webconfig_error_translate_to_ovsdb;
+            } else {
+                return webconfig_error_translate_to_easymesh;
+            }
         }
     } else if ((data->descriptor & webconfig_data_descriptor_translate_to_tr181) == webconfig_data_descriptor_translate_to_tr181) {
 
@@ -65,9 +68,14 @@ webconfig_error_t translate_from_private_subdoc(webconfig_t *config, webconfig_s
 
 webconfig_error_t translate_to_private_subdoc(webconfig_t *config, webconfig_subdoc_data_t *data)
 {
-    if ((data->descriptor & webconfig_data_descriptor_translate_from_ovsdb) == webconfig_data_descriptor_translate_from_ovsdb) {
+    if (((data->descriptor & webconfig_data_descriptor_translate_from_ovsdb) == webconfig_data_descriptor_translate_from_ovsdb)
+        ||  ((data->descriptor & webconfig_data_descriptor_translate_from_easymesh) == webconfig_data_descriptor_translate_from_easymesh)) {
         if (config->proto_desc.translate_from(webconfig_subdoc_type_private, data) != webconfig_error_none) {
-            return webconfig_error_translate_from_ovsdb;
+            if ((data->descriptor & webconfig_data_descriptor_translate_from_ovsdb) == webconfig_data_descriptor_translate_from_ovsdb) {
+                return webconfig_error_translate_from_ovsdb;
+            } else {
+                return webconfig_error_translate_from_easymesh;
+            }
         }
     } else if ((data->descriptor & webconfig_data_descriptor_translate_from_tr181) == webconfig_data_descriptor_translate_from_tr181) {
 

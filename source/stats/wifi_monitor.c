@@ -16,10 +16,8 @@
   See the License for the specific language governing permissions and
   limitations under the License.
  **************************************************************************/
-
-#include <telemetry_busmessage_sender.h>
-#include "cosa_wifi_apis.h"
-#include "ccsp_psm_helper.h"
+#include "harvester.h"
+#include "wifi_passpoint.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -45,14 +43,6 @@
 #ifdef MQTTCM
 #include <mqttcm_lib/mqttcm_conn.h>
 #endif
-#include "ansc_status.h"
-#include <sysevent/sysevent.h>
-#include "ccsp_base_api.h"
-#include "harvester.h"
-#include "wifi_passpoint.h"
-#include "ccsp_trace.h"
-#include "safec_lib_common.h"
-#include "ccsp_WifiLog_wrapper.h"
 #include <sched.h>
 #include "scheduler.h"
 #include "timespec_macro.h"
@@ -78,11 +68,13 @@
 #include "common/ieee802_11_defs.h"
 #include "const.h"
 #include "pktgen.h"
+#include "misc.h"
 
 #ifndef  UNREFERENCED_PARAMETER
 #define UNREFERENCED_PARAMETER(_p_)         (void)(_p_)
 #endif
 
+#define WIFI_INDEX_MAX MAX_VAP
 #define MIN_MAC_LEN 12
 #define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
 #define MAC_FMT_TRIMMED "%02x%02x%02x%02x%02x%02x"
@@ -93,7 +85,6 @@
     arg[3], \
     arg[4], \
     arg[5]
-#define RADIO_STATS_INTERVAL_MS 30000 //30 seconds
 #ifdef MQTTCM
 #define MQTTCM_DISABLE_FLAG "/mnt/data/pstore/disable_mqttcm"
 #endif
@@ -107,6 +98,7 @@
 #define RSN_CIPHERSUITE_TKIP RSN_SELECTOR(0x00, 0x0f, 0xac, 2)
 #define RSN_CIPHERSUITE_CCMP_128 RSN_SELECTOR(0x00, 0x0f, 0xac, 4)
 #define RSN_CIPHERSUITE_BIP_CMAC_128 RSN_SELECTOR(0x00, 0x0f, 0xac, 6)
+#define RSN_CIPHERSUITE_GCMP_256 RSN_SELECTOR(0x00, 0x0f, 0xac, 9)
 
 #define RSN_SELECTOR_LEN 4
 
@@ -139,6 +131,7 @@ Licensed under the BSD-3 License
 #define RSN_AUTH_KEY_MGMT_FT_SAE RSN_SELECTOR(0x00, 0x0f, 0xac, 9)
 #define RSN_AUTH_KEY_MGMT_802_1X_SUITE_B_192 RSN_SELECTOR(0x00, 0x0f, 0xac, 12)
 #define RSN_AUTH_KEY_MGMT_FT_802_1X_SHA384 RSN_SELECTOR(0x00, 0x0f, 0xac, 13)
+#define RSN_AUTH_KEY_MGMT_SAE_EXT_KEY RSN_SELECTOR(0x00, 0x0f, 0xac, 24)
 
 struct rsn_data {
     uint8_t ver[2]; /* little endian */
@@ -223,7 +216,6 @@ static int clientdiag_sheduler_enable(int ap_index);
 
 void deinit_wifi_monitor(void);
 void SetBlasterMqttTopic(char *mqtt_topic);
-int radio_diagnostics(void *arg);
 
 static inline char *to_sta_key    (mac_addr_t mac, sta_key_t key) 
 {
@@ -1079,6 +1071,7 @@ void process_disconnect	(unsigned int ap_index, auth_deauth_dev_t *dev)
       is running got disconnected from AP
       */
 }
+
 
 int get_neighbor_scan_cfg(int radio_index,
                           wifi_neighbor_ap2_t *neighbor_results,
@@ -2117,91 +2110,6 @@ int get_radio_data(int radio_index, wifi_radioTrafficStats2_t *radio_traffic_sta
     return 0;
 }
 
-int radio_diagnostics(void *arg)
-{
-    wifi_radioTrafficStats2_t radioTrafficStats;
-    //char            ChannelsInUse[256] = {0};
-    char            RadioFreqBand[64] = {0};
-    char            RadioChanBand[64] = {0};
-    static unsigned int radiocnt = 0;
-    wifi_radio_operationParam_t* radioOperation = getRadioOperationParam(radiocnt);
-    wifi_freq_bands_t band_enum;
-
-    if (g_monitor_module.is_blaster_running == true) {
-        wifi_util_dbg_print(WIFI_MON, "%s:%d Active Measurement is running, skipping radio diagnostics...\n",__func__,__LINE__);
-        return TIMER_TASK_COMPLETE;
-    }
-
-    wifi_util_dbg_print(WIFI_MON, "%s : %d getting radio Traffic stats for Radio %d\n",__func__,__LINE__, radiocnt);
-    memset(&radioTrafficStats, 0, sizeof(wifi_radioTrafficStats2_t));
-    memset(&g_monitor_module.radio_data[radiocnt], 0, sizeof(radio_data_t));
-
-    if (radioOperation != NULL) {
-        if(radioOperation->enable) {
-
-            if (wifi_getRadioTrafficStats2(radiocnt, &radioTrafficStats) == RETURN_OK) {
-                /* update the g_active_msmt with the radio data */
-                g_monitor_module.radio_data[radiocnt].NoiseFloor = radioTrafficStats.radio_NoiseFloor;
-                g_monitor_module.radio_data[radiocnt].RadioActivityFactor = radioTrafficStats.radio_ActivityFactor;
-                g_monitor_module.radio_data[radiocnt].CarrierSenseThreshold_Exceeded = radioTrafficStats.radio_CarrierSenseThreshold_Exceeded;
-                g_monitor_module.radio_data[radiocnt].channelUtil = radioTrafficStats.radio_ChannelUtilization;
-                g_monitor_module.radio_data[radiocnt].radio_BytesSent = radioTrafficStats.radio_BytesSent;
-                g_monitor_module.radio_data[radiocnt].radio_BytesReceived = radioTrafficStats.radio_BytesReceived;
-                g_monitor_module.radio_data[radiocnt].radio_PacketsSent = radioTrafficStats.radio_PacketsSent;
-                g_monitor_module.radio_data[radiocnt].radio_PacketsReceived = radioTrafficStats.radio_PacketsReceived;
-                g_monitor_module.radio_data[radiocnt].radio_ErrorsSent = radioTrafficStats.radio_ErrorsSent;
-                g_monitor_module.radio_data[radiocnt].radio_ErrorsReceived = radioTrafficStats.radio_ErrorsReceived;
-                g_monitor_module.radio_data[radiocnt].radio_DiscardPacketsSent = radioTrafficStats.radio_DiscardPacketsSent;
-                g_monitor_module.radio_data[radiocnt].radio_DiscardPacketsReceived = radioTrafficStats.radio_DiscardPacketsReceived;
-                g_monitor_module.radio_data[radiocnt].radio_InvalidMACCount = radioTrafficStats.radio_InvalidMACCount;
-                g_monitor_module.radio_data[radiocnt].radio_PacketsOtherReceived = radioTrafficStats.radio_PacketsOtherReceived;
-                g_monitor_module.radio_data[radiocnt].radio_RetransmissionMetirc = radioTrafficStats.radio_RetransmissionMetirc;
-                g_monitor_module.radio_data[radiocnt].radio_PLCPErrorCount = radioTrafficStats.radio_PLCPErrorCount;
-                g_monitor_module.radio_data[radiocnt].radio_FCSErrorCount = radioTrafficStats.radio_FCSErrorCount;
-                g_monitor_module.radio_data[radiocnt].radio_MaximumNoiseFloorOnChannel = radioTrafficStats.radio_MaximumNoiseFloorOnChannel;
-                g_monitor_module.radio_data[radiocnt].radio_MinimumNoiseFloorOnChannel = radioTrafficStats.radio_MinimumNoiseFloorOnChannel;
-                g_monitor_module.radio_data[radiocnt].radio_MedianNoiseFloorOnChannel = radioTrafficStats.radio_MedianNoiseFloorOnChannel;
-                g_monitor_module.radio_data[radiocnt].radio_StatisticsStartTime = radioTrafficStats.radio_StatisticsStartTime;
-#if 0
-                /* When we trigger below API then Broadcom driver internally trigger offchannel scan.
-                *  We don't want this offchannel scan at every 30 seconds. So, for resolution of
-                *  this issue we commented out below API.
-                */
-                wifi_getRadioChannelsInUse (radiocnt, ChannelsInUse);
-                strncpy((char *)&g_monitor_module.radio_data[radiocnt].ChannelsInUse, ChannelsInUse,sizeof(ChannelsInUse));
-#endif
-                g_monitor_module.radio_data[radiocnt].primary_radio_channel = radioOperation->channel;
-
-                band_enum = radioOperation->band;
-                if (freq_band_conversion(&band_enum, (char *)RadioFreqBand, sizeof(RadioFreqBand), ENUM_TO_STRING) != RETURN_OK)
-                {
-                    wifi_util_error_print(WIFI_MON,"%s:%d: frequency band conversion failed\n", __func__, __LINE__);
-                } else {
-                    strncpy((char *)&g_monitor_module.radio_data[radiocnt].frequency_band, RadioFreqBand, sizeof(RadioFreqBand));
-                    g_monitor_module.radio_data[radiocnt].frequency_band[sizeof(g_monitor_module.radio_data[radiocnt].frequency_band)-1] = '\0';
-                    wifi_util_dbg_print(WIFI_MON, "%s:%d: Frequency band is  %s\n", __func__, __LINE__, RadioFreqBand);
-                }
-
-                wifi_getRadioOperatingChannelBandwidth(radiocnt,RadioChanBand);
-                strncpy((char *)&g_monitor_module.radio_data[radiocnt].channel_bandwidth, RadioChanBand,sizeof(RadioChanBand));
-                wifi_util_dbg_print(WIFI_MON, "%s:%d: channelbandwidth is  %s\n", __func__, __LINE__, RadioChanBand);
-            } else {
-                wifi_util_error_print(WIFI_MON, "%s : %d wifi_getRadioTrafficStats2 failed for rdx : %d\n",__func__,__LINE__,radiocnt);
-            }
-        } else {
-            wifi_util_dbg_print(WIFI_MON, "%s : %d Radio : %d is not enabled\n",__func__,__LINE__,radiocnt);
-        }
-    } else {
-        wifi_util_error_print(WIFI_MON, "%s : %d Failed to get getRadioOperationParam for rdx : %d\n",__func__,__LINE__,radiocnt);
-    }
-    radiocnt++;
-    if (radiocnt >= getNumberRadios()) {
-        radiocnt = 0;
-        return TIMER_TASK_COMPLETE;
-    }
-    return TIMER_TASK_CONTINUE;
-}
-
 bool active_sta_connection_status(int ap_index, char *mac)
 {
     sta_data_t  *sta;
@@ -2449,6 +2357,10 @@ get_key_mgmt(const uint8_t *s, char *key_mgmt_buff, size_t buff_size)
         strncpy(key_mgmt_buff, "sae", buff_size - 1);
         return;
     }
+    if (RSN_SELECTOR_GET(s) == RSN_AUTH_KEY_MGMT_SAE_EXT_KEY) {
+        strncpy(key_mgmt_buff, "sae-ext", buff_size - 1);
+        return;
+    }
     if (RSN_SELECTOR_GET(s) == RSN_AUTH_KEY_MGMT_FT_SAE) {
         strncpy(key_mgmt_buff, "ft-sae", buff_size - 1);
         return;
@@ -2477,6 +2389,10 @@ static void get_cipher_suite(const uint8_t *s, char *buff, size_t buff_size)
     }
     if (RSN_SELECTOR_GET(s) == RSN_CIPHERSUITE_BIP_CMAC_128) {
         strncpy(buff, "bip-cmac-128", buff_size - 1);
+        return;
+    }
+    if (RSN_SELECTOR_GET(s) == RSN_CIPHERSUITE_GCMP_256) {
+        strncpy(buff, "gcmp-256", buff_size - 1);
         return;
     }
 
@@ -2677,20 +2593,10 @@ static void scheduler_telemetry_tasks(void)
             scheduler_add_timer_task(g_monitor_module.sched, FALSE, &g_monitor_module.refresh_task_id, refresh_task_period,
                     NULL, REFRESH_TASK_INTERVAL_MS, 0, FALSE);
         }
-        if (g_monitor_module.radio_diagnostics_id == 0) {
-            //RADIO_STATS_INTERVAL - 30 seconds
-            scheduler_add_timer_task(g_monitor_module.sched, FALSE, &g_monitor_module.radio_diagnostics_id, radio_diagnostics, NULL,
-                    RADIO_STATS_INTERVAL_MS, 0, FALSE);
-        }
     } else {
         if (g_monitor_module.refresh_task_id != 0) {
             scheduler_cancel_timer_task(g_monitor_module.sched, g_monitor_module.refresh_task_id);
             g_monitor_module.refresh_task_id = 0;
-        }
-
-        if (g_monitor_module.radio_diagnostics_id != 0) {
-            scheduler_cancel_timer_task(g_monitor_module.sched, g_monitor_module.radio_diagnostics_id);
-            g_monitor_module.radio_diagnostics_id = 0;
         }
         if (g_monitor_module.client_telemetry_id != 0) {
             scheduler_cancel_timer_task(g_monitor_module.sched, g_monitor_module.client_telemetry_id);
@@ -2826,7 +2732,6 @@ int init_wifi_monitor()
 
     g_monitor_module.client_telemetry_id = 0;
     g_monitor_module.refresh_task_id = 0;
-    g_monitor_module.radio_diagnostics_id = 0;
 
     g_monitor_module.csi_sched_id = 0;
     g_monitor_module.csi_sched_interval = 0;
@@ -2883,7 +2788,7 @@ int start_wifi_monitor ()
     unsigned char def_mac[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     wifi_mgr_t *mgr = get_wifimgr_obj();
 
-    onewifi_pktgen_uninit();
+     get_stubs_descriptor()->onewifi_pktgen_uninit_fn();
 
     for (i = 0; i < getTotalNumberVAPs(); i++) {
         /*TODO CID: 110946 Out-of-bounds access - Fix in QTN code*/
@@ -2901,7 +2806,7 @@ int start_wifi_monitor ()
 
         //ONEWIFI To avoid the segmentation Fault
         //Cleanup all CSI clients configured in driver
-        wifi_enableCSIEngine(vap_index, def_mac, FALSE);
+        get_misc_descriptor()->wifi_enableCSIEngine_fn(vap_index, def_mac, FALSE);
     }
 
     pthread_attr_t attr;
@@ -2923,13 +2828,13 @@ int start_wifi_monitor ()
     if(attrp != NULL)
         pthread_attr_destroy( attrp );
 
-    g_monitor_module.sysevent_fd = sysevent_open("127.0.0.1", SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, "wifiMonitor", &g_monitor_module.sysevent_token);
+    g_monitor_module.sysevent_fd = get_misc_descriptor()->sysevent_open_fn("127.0.0.1", 0, 0, "wifiMonitor", &g_monitor_module.sysevent_token);
     if (g_monitor_module.sysevent_fd < 0) {
         wifi_util_error_print(WIFI_MON, "%s:%d: Failed to open sysevent\n", __func__, __LINE__);
     } else {
         wifi_util_info_print(WIFI_MON, "%s:%d: Opened sysevent\n", __func__, __LINE__);
     }
-    if (initparodusTask() == -1) {
+    if (get_misc_descriptor()->initparodusTask_fn() == -1) {
         //wifi_util_dbg_print(WIFI_MON, "%s:%d: Failed to initialize paroduc task\n", __func__, __LINE__);
 
     }
@@ -2950,7 +2855,7 @@ void deinit_wifi_monitor()
 #endif
     csi_pinger_data_t *pinger_data = NULL, *tmp_pinger_data = NULL;
     mac_addr_str_t mac_str = { 0 };
-    sysevent_close(g_monitor_module.sysevent_fd, g_monitor_module.sysevent_token);
+    get_misc_descriptor()->sysevent_close_fn(g_monitor_module.sysevent_fd, g_monitor_module.sysevent_token);
     if(g_monitor_module.queue != NULL)
         queue_destroy(g_monitor_module.queue);
 

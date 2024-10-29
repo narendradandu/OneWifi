@@ -20,33 +20,26 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <sys/stat.h>
-#if DML_SUPPORT
-#include <syscfg/syscfg.h>
-#include "ansc_platform.h"
-#endif // DML_SUPPORT
 #include "wifi_hal.h"
 #include "wifi_ctrl.h"
 #include "wifi_mgr.h"
 #include "wifi_util.h"
-#if DML_SUPPORT
 #include "wifi_monitor.h"
-#endif // DML_SUPPORT
 #include "scheduler.h"
 #include <unistd.h>
 #include <pthread.h>
 #include "wifi_hal_rdk_framework.h"
 #include "wifi_passpoint.h"
-#if DML_SUPPORT
-#include "safec_lib_common.h"
+#include "wifi_stubs.h"
 
 #define NEIGHBOR_SCAN_RESULT_INTERVAL 40000 // 40 sec
 #define MAX_VAP_INDEX 24
-#endif // DML_SUPPORT
 
 #define CHAN_UTIL_INTERVAL_MS 900000 // 15 mins
 #define TELEMETRY_UPDATE_INTERVAL_MS 3600000 // 1 hour
 #define ASSOCIATED_DEVICE_DIAG_INTERVAL_MS 5000 //5 seconds
 #define MAX_RESET_RADIO_PARAMS_RETRY_COUNTER  (5000 / 100)
+
 
 static unsigned msg_id = 1000;
 
@@ -182,7 +175,6 @@ void process_dpp_config_req_frame_event(frame_data_t *msg, uint32_t msg_length)
 }
 
 
-#if DML_SUPPORT
 static wifi_anqp_node_t* convert_frame_data_to_anqp(int ap_index, mac_address_t sta, unsigned char token, unsigned char *attrib, unsigned int len)
 {
     char macStr[MAC_STR_LEN];
@@ -672,7 +664,6 @@ void process_anqp_gas_init_frame_event(frame_data_t *msg, uint32_t msg_length)
         wifi_util_dbg_print(WIFI_CTRL, "%s:%d: ANQP Response Count for VAP %d is = %d \n", __func__,__LINE__, msg->frame.ap_index+1, rdk_vap_info->anqp_response_count);
     }
 }
-#endif // DML_SUPPORT
 
 void send_hotspot_status(char* vap_name, bool up)
 {
@@ -712,10 +703,8 @@ void process_xfinity_vaps(wifi_hotspot_action_t param, bool hs_evt)
     ctrl = (wifi_ctrl_t *)get_wifictrl_obj();
     wifi_platform_property_t *wifi_prop = (&(get_wifimgr_obj())->hal_cap.wifi_prop);
     uint8_t num_radios = getNumberRadios();
-#if DML_SUPPORT
     bool open_2g_enabled = false, open_5g_enabled = false, open_6g_enabled = false,sec_2g_enabled = false,sec_5g_enabled = false, sec_6g_enabled = false;
     wifi_rfc_dml_parameters_t *rfc_param = (wifi_rfc_dml_parameters_t *)get_wifi_db_rfc_parameters();
-#endif // DML_SUPPORT
 
     pub_svc = get_svc_by_type(ctrl, vap_svc_type_public);
     for(int radio_indx = 0; radio_indx < num_radios; ++radio_indx) {
@@ -741,7 +730,6 @@ void process_xfinity_vaps(wifi_hotspot_action_t param, bool hs_evt)
                 tmp_vap_map.vap_array[0].u.bss_info.enabled = false;
             }
             if (param == hotspot_vap_enable ) {
-#if DML_SUPPORT
                 if (rfc_param) {
                     open_2g_enabled = rfc_param->hotspot_open_2g_last_enabled;
                     open_5g_enabled = rfc_param->hotspot_open_5g_last_enabled;
@@ -771,9 +759,6 @@ void process_xfinity_vaps(wifi_hotspot_action_t param, bool hs_evt)
                     tmp_vap_map.vap_array[0].u.bss_info.enabled = true;
 
                 wifi_util_dbg_print(WIFI_CTRL,"enabled is %d\n",tmp_vap_map.vap_array[0].u.bss_info.enabled);
-#else
-                tmp_vap_map.vap_array[0].u.bss_info.enabled = true;
-#endif // DML_SUPPORT
             }
             if(pub_svc->update_fn(pub_svc,radio_indx, &tmp_vap_map, rdk_vap_info) != RETURN_OK) {
                 wifi_util_error_print(WIFI_CTRL, "%s:%d Unable to create vaps\n", __func__,__LINE__);
@@ -1326,14 +1311,12 @@ void process_greylist_mac_filter(void *data)
     unsigned int itr = 0, itrj = 0;
     int reason = 0;
     int vap_index = 0;
-#if DML_SUPPORT
     const char *wifi_health_log = "/rdklogs/logs/wifihealth.txt";
     char log_buf[1024] = {0};
     char time_str[20] = {0};
     time_t now;
     struct tm *time_info;
     bool greylist_client_added = false;
-#endif // DML_SUPPORT
 
     rdk_wifi_vap_info_t *rdk_vap_info = NULL;
     mac_address_t zero_mac = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -1416,12 +1399,9 @@ void process_greylist_mac_filter(void *data)
 
             snprintf(macfilterkey, sizeof(macfilterkey), "%s-%s", rdk_vap_info->vap_name, new_mac_str);
             get_wifidb_obj()->desc.update_wifi_macfilter_config_fn(macfilterkey, acl_entry, true);
-#if DML_SUPPORT
             greylist_client_added = true;
-#endif // DML_SUPPORT
         }
     }
-#if DML_SUPPORT
     //Add time and Mac address to wifihealth.txt
     if (greylist_client_added) {
         time(&now);
@@ -1432,7 +1412,6 @@ void process_greylist_mac_filter(void *data)
         write_to_file(wifi_health_log, log_buf);
         wifi_util_dbg_print(WIFI_CTRL,"%s",log_buf);
    }
-#endif // DML_SUPPORT
 }
 
 void process_wifi_host_sync()
@@ -1820,7 +1799,6 @@ void process_factory_reset_command(bool type)
     p_wifi_mgr->ctrl.webconfig_state |= ctrl_webconfig_state_factoryreset_cfg_rsp_pending;
 }
 
-#if DML_SUPPORT
 void process_radius_grey_list_rfc(bool type)
 {
     bool public_xfinity_vap_status = false;
@@ -2167,7 +2145,6 @@ void process_levl_rfc(bool type)
     get_wifidb_obj()->desc.update_rfc_config_fn(0, rfc_param);
     return;
 }
-#endif // DML_SUPPORT
 
 void process_wps_command_event(unsigned int vap_index)
 {
@@ -2506,18 +2483,24 @@ void process_channel_change_event(wifi_channel_change_event_t *ch_chg)
         wifi_channelState_t chan_state = CHAN_STATE_DFS_NOP_FINISHED;
         rdk_wifi_radio_t *l_radio = NULL;
         time_t time_now = 0;
+        l_radio = find_radio_config_by_index(ch_chg->radioIndex);
+        time_now = time(NULL);
+
+        if (l_radio == NULL) {
+            wifi_util_error_print(WIFI_CTRL,"%s:%d radio strucutre is not present for radio %d\n",
+                                __FUNCTION__, __LINE__,  ch_chg->radioIndex);
+            return;
+        }
+
+        if( ((ch_chg->channel >= 36 && ch_chg->channel < 52) && (ch_chg->channelWidth != WIFI_CHANNELBANDWIDTH_160MHZ )) || (ch_chg->channel > 144 && ch_chg->channel <= 165) ) {
+            wifi_util_error_print(WIFI_CTRL,"%s: Wrong radar in radio_index:%d chan:%u \n",__FUNCTION__, ch_chg->radioIndex, ch_chg->channel);
+            return ;
+        }
 
         switch (ch_chg->sub_event)
         {
             case WIFI_EVENT_RADAR_DETECTED :
                 chan_state = CHAN_STATE_DFS_NOP_START;
-                l_radio = find_radio_config_by_index(ch_chg->radioIndex);
-                time_now = time(NULL);
-                if (l_radio == NULL) {
-                    wifi_util_error_print(WIFI_CTRL,"%s:%d radio strucutre is not present for radio %d\n",
-                                          __FUNCTION__, __LINE__,  ch_chg->radioIndex);
-                    return;
-                }
                 if((l_radio->radarInfo.timestamp != 0) && ((time_now - l_radio->radarInfo.timestamp) <= 2)) {
                     /* Ignore the duplicate radar events for the same channel triggered within 2 seconds */
                     break;
@@ -2533,6 +2516,13 @@ void process_channel_change_event(wifi_channel_change_event_t *ch_chg)
                 chan_state = CHAN_STATE_DFS_CAC_COMPLETED;
                 break;
             case WIFI_EVENT_RADAR_NOP_FINISHED :
+                if( (unsigned int)l_radio->radarInfo.last_channel == ch_chg->channel && (time_now - l_radio->radarInfo.timestamp >= 1800) && (l_radio->radarInfo.num_detected > 0)) {
+                    l_radio->radarInfo.last_channel = 0;
+                    l_radio->radarInfo.num_detected = 0;
+                    l_radio->radarInfo.timestamp = 0;
+                } else if (l_radio->radarInfo.num_detected > 1){
+                    l_radio->radarInfo.num_detected--;
+                }
                 chan_state = CHAN_STATE_DFS_NOP_FINISHED;
                 break;
             case WIFI_EVENT_RADAR_PRE_CAC_EXPIRED :
@@ -2648,7 +2638,6 @@ int get_neighbor_scan_results(void *arg)
 
 void process_neighbor_scan_command_event()
 {
-#if DML_SUPPORT
     wifi_monitor_t *monitor_param = (wifi_monitor_t *)get_wifi_monitor();
     wifi_ctrl_t *ctrl = (wifi_ctrl_t *)get_wifictrl_obj();
     wifi_event_route_t route;
@@ -2658,7 +2647,7 @@ void process_neighbor_scan_command_event()
         return;
     }
     
-    strcpy_s(monitor_param->neighbor_scan_cfg.DiagnosticsState, sizeof(monitor_param->neighbor_scan_cfg.DiagnosticsState) , "Requested");
+    get_stubs_descriptor()->strcpy_fn(monitor_param->neighbor_scan_cfg.DiagnosticsState, sizeof(monitor_param->neighbor_scan_cfg.DiagnosticsState), "Requested");
 
     wifi_monitor_data_t *data = (wifi_monitor_data_t *) malloc(sizeof(wifi_monitor_data_t));
     if (data == NULL) {
@@ -2689,7 +2678,6 @@ void process_neighbor_scan_command_event()
     free(data);
     scheduler_add_timer_task(ctrl->sched, FALSE, NULL, get_neighbor_scan_results, NULL,
                     NEIGHBOR_SCAN_RESULT_INTERVAL, 1, FALSE);
-#endif // DML_SUPPORT
 }
 
 int wifidb_vap_status_update(bool status)
@@ -2856,7 +2844,6 @@ void handle_command_event(wifi_ctrl_t *ctrl, void *data, unsigned int len, wifi_
         case wifi_event_type_twoG80211axEnable_rfc:
             process_twoG80211axEnable_rfc(*(bool *)data);
             break;
-
         case wifi_event_type_command_kickmac:
             break;
 
@@ -2918,6 +2905,7 @@ void handle_command_event(wifi_ctrl_t *ctrl, void *data, unsigned int len, wifi_
         case wifi_event_type_prefer_private_rfc:
             process_prefer_private_rfc(*(bool *)data);
             break;
+
         case wifi_event_type_trigger_disconnection:
             process_sta_trigger_disconnection(*(unsigned int *)data);
             break;
@@ -2990,11 +2978,9 @@ void handle_hal_indication(wifi_ctrl_t *ctrl, void *data, unsigned int len, wifi
             process_dpp_config_req_frame_event(data, len);
             break;
 
-#if DML_SUPPORT
         case wifi_event_hal_anqp_gas_init_frame:
             process_anqp_gas_init_frame_event(data, len);
             break;
-#endif // DML_SUPPORT
 
         case wifi_event_hal_sta_conn_status:
             process_sta_conn_status_event(data, len);
