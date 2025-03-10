@@ -718,6 +718,11 @@ int update_wifi_interworking_config(char *vap_name, wifi_interworking_t *config)
     return 0;
 }
 
+int update_wifi_global_new_config(wifi_global_param_t *config)
+{
+    return 0;
+}
+
 int update_wifi_global_config(wifi_global_param_t *config)
 {
     return 0;
