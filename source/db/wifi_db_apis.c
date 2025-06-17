@@ -6892,7 +6892,7 @@ int wifidb_init_vap_config_default(int vap_index, wifi_vap_info_t *config,
             }
             cfg.u.bss_info.security.encr = wifi_encryption_aes;
             cfg.u.bss_info.bssHotspot = false;
-            cfg.u.bss_info.mbo_enabled = true;
+            cfg.u.bss_info.mbo_enabled = false;
         } else  {
             if (band == WIFI_FREQUENCY_6_BAND) {
                 cfg.u.bss_info.security.mode = wifi_security_mode_wpa3_personal;
