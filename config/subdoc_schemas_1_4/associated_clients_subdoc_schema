@@ -194,6 +194,26 @@
 			]
 		},
 		{
+			"VapName": "private_ssid_2_5g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "private_ssid_2_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "private_ssid_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "iot_ssid_2_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "iot_ssid_2_5g",
+			"associatedClients": []
+		},
+		{
 			"VapName": "iot_ssid_2_6g",
 			"associatedClients": [
 				{
@@ -260,6 +280,90 @@
 					]
 				}
 			]
+		},
+		{
+			"VapName": "iot_ssid_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_open_2_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_open_2_5g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_open_2_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_open_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_psk_2_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_psk_2_5g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_psk_2_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_psk_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_secure_2_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_secure_2_5g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_secure_2_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "hotspot_secure_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_radius_2_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_radius_2_5g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_radius_2_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "lnf_radius_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "mesh_backhaul_2_5_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "mesh_backhaul_2_5g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "mesh_backhaul_2_6g",
+			"associatedClients": []
+		},
+		{
+			"VapName": "mesh_backhaul_5_6g",
+			"associatedClients": []
 		}
 	]
 }
