@@ -100,12 +100,10 @@
 			"VapName": "private_ssid_2_5_6g",
 			"associatedClients": [
 				{
-					"MLD_MACAddress": "11:22:33:44:55:66",
+					"MACAddress": "11:22:33:44:55:66",
 					"Links": [
 						{
-							"LinkMACAddress": "aa:bb:cc:dd:ee:ff",
 							"Band": "2G",
-							"AssociationLink": false,
 							"AuthenticationState": true,
 							"LastDataDownlinkRate": 650,
 							"LastDataUplinkRate": 200,
@@ -134,9 +132,7 @@
 							"MultipleRetryCount": 0
 						},
 						{
-							"LinkMACAddress": "bb:cc:dd:ee:ff:00",
 							"Band": "5G",
-							"AssociationLink": true,
 							"AuthenticationState": true,
 							"LastDataDownlinkRate": 1200,
 							"LastDataUplinkRate": 600,
@@ -165,9 +161,7 @@
 							"MultipleRetryCount": 0
 						},
 						{
-							"LinkMACAddress": "cc:dd:ee:ff:00:11",
 							"Band": "6G",
-							"AssociationLink": false,
 							"AuthenticationState": true,
 							"LastDataDownlinkRate": 2400,
 							"LastDataUplinkRate": 1200,
@@ -203,12 +197,10 @@
 			"VapName": "iot_ssid_2_6g",
 			"associatedClients": [
 				{
-					"MLD_MACAddress": "22:33:44:55:66:77",
+					"MACAddress": "22:33:44:55:66:77",
 					"Links": [
 						{
-							"LinkMACAddress": "44:55:66:77:88:99",
 							"Band": "2G",
-							"AssociationLink": false,
 							"AuthenticationState": true,
 							"LastDataDownlinkRate": 100,
 							"LastDataUplinkRate": 50,
@@ -237,9 +229,7 @@
 							"MultipleRetryCount": 0
 						},
 						{
-							"LinkMACAddress": "77:88:99:aa:bb:cc",
 							"Band": "6G",
-							"AssociationLink": true,
 							"AuthenticationState": true,
 							"LastDataDownlinkRate": 1200,
 							"LastDataUplinkRate": 600,
